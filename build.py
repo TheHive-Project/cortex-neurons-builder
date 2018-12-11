@@ -52,17 +52,20 @@ def analyzer_is_updated(args, flavor, analyzer_name):
     if last_commit is None:
         print('No previous Docker image found for analyzer {}, build it'.format(flavor['name'].lower()))
         return True
-    repo = git.Repo(args.base_path)
-    head = repo.head.commit
-    for change in head.diff(other=last_commit):
-        if change.a_path.startswith(join(args.analyzer_path, analyzer_name)) or \
-                change.b_path.startswith(join(args.analyzer_path, analyzer_name)):
-            print('Previous Docker image of analyzer {} has been built from commit {}, changed detected, rebuild it'
-                  .format(flavor['name'].lower(), last_commit))
-            return True
-    print('Previous Docker image of analyzer {} has been built from commit {}, no change detected'
-          .format(flavor['name'].lower(), last_commit))
-    return False
+    try:
+        repo = git.Repo(args.base_path)
+        head = repo.head.commit
+        for change in head.diff(other=last_commit):
+            if change.a_path.startswith(join(args.analyzer_path, analyzer_name)) or \
+                    change.b_path.startswith(join(args.analyzer_path, analyzer_name)):
+                print('Previous Docker image of analyzer {} has been built from commit {}, changed detected, rebuild it'
+                      .format(flavor['name'].lower(), last_commit))
+                return True
+        print('Previous Docker image of analyzer {} has been built from commit {}, no change detected'
+              .format(flavor['name'].lower(), last_commit))
+        return False
+    except:
+        return True
 
 
 def git_commit_sha(args):
@@ -71,7 +74,7 @@ def git_commit_sha(args):
 
 def build_docker(args, analyzer_name, flavor):
     def build(dockerfile):
-        (image, output) =  args.docker_client.images.build(
+        (image, output) = args.docker_client.images.build(
                 path=join(args.analyzer_path, analyzer_name),
                 dockerfile=dockerfile,
                 pull=True,
@@ -171,17 +174,36 @@ def main():
     latest = environ.get('LATEST') is not None
     analyzer_path = environ.get('PLUGIN_ANALYZER_PATH', 'analyzers')
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--namespace', required=namespace is None, default=namespace,
+    parser.add_argument('-n', '--namespace',
+                        required=namespace is None,
+                        default=namespace,
                         help='Namespace of docker images')
-    parser.add_argument('-u', '--user', required=user is None, default=user,
+    parser.add_argument('-u', '--user',
+                        required=user is None,
+                        default=user,
                         help='Username to authenticate to the Docker registry')
-    parser.add_argument('-p', '--password', required=password is None, default=password,
+    parser.add_argument('-p', '--password',
+                        required=password is None,
+                        default=password,
                         help='Password to authenticate to the Docker registry')
-    parser.add_argument('-r', '--registry', default=registry, help='Hostname of the Docker registry')
-    parser.add_argument('-l', '--latest', action='store_true', default=latest, help='Add release tags')
-    parser.add_argument('-a', '--analyzer', action='append', dest='analyzers', help='Name of the analyzer to build')
-    parser.add_argument('--path', default=analyzer_path, dest='analyzer_path', help='Path of the analyzers')
-    parser.add_argument('--base-path', default='.', help='Path of the git repository')
+    parser.add_argument('-r', '--registry',
+                        default=registry,
+                        help='Hostname of the Docker registry')
+    parser.add_argument('-l', '--latest',
+                        action='store_true',
+                        default=latest,
+                        help='Add release tags')
+    parser.add_argument('-a', '--analyzer',
+                        action='append',
+                        dest='analyzers',
+                        help='Name of the analyzer to build')
+    parser.add_argument('--path',
+                        default=analyzer_path,
+                        dest='analyzer_path',
+                        help='Path of the analyzers')
+    parser.add_argument('--base-path',
+                        default='.',
+                        help='Path of the git repository')
     args = parser.parse_args()
     args.docker_client = docker.from_env()
     args.docker_client.login(args.user, args.password)
