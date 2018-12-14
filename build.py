@@ -47,7 +47,7 @@ def list_flavor(path):
 
 
 def analyzer_is_updated(args, flavor, analyzer_name):
-    tag = 'latest' if args.latest else 'devel'
+    tag = flavor['version'] if args.stable else 'devel'
     last_commit = last_build_commit(args, flavor['name'].lower(), tag)
     if last_commit is None:
         print('No previous Docker image found for analyzer {}, build it'.format(flavor['name'].lower()))
@@ -154,14 +154,7 @@ def build_analyzers(args):
             if not docker_repository_exists(args, flavor['repo']):
                 print('Repository {} does not exist'.format(flavor['repo']))
                 docker_create_repository(args, flavor)
-            if args.latest:
-                tags = ['latest']
-                version = ''
-                for v in flavor['version'].split('.'):
-                    version = '{}.{}'.format(version, v)
-                    tags.append(version[1:])
-            else:
-                tags = ['devel']
+            tags = flavor['version'] if args.stable else 'devel'
             for tag in set(tags):
                 docker_push_image(args, flavor['repo'], tag)
 
@@ -171,7 +164,7 @@ def main():
     user = environ.get('PLUGIN_USER')
     password = environ.get('PLUGIN_PASSWORD')
     registry = environ.get('PLUGIN_REGISTRY', 'registry-1.docker.io')
-    latest = environ.get('LATEST') is not None
+    stable = environ.get('PLUGIN_STABLE') is not None
     analyzer_path = environ.get('PLUGIN_ANALYZER_PATH', 'analyzers')
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--namespace',
@@ -189,9 +182,9 @@ def main():
     parser.add_argument('-r', '--registry',
                         default=registry,
                         help='Hostname of the Docker registry')
-    parser.add_argument('-l', '--latest',
+    parser.add_argument('-s', '--stable',
                         action='store_true',
-                        default=latest,
+                        default=stable,
                         help='Add release tags')
     parser.add_argument('-a', '--analyzer',
                         action='append',
