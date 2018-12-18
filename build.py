@@ -103,7 +103,7 @@ FROM python:3
 WORKDIR /analyzer
 COPY . {analyzer_name}
 RUN pip install --no-cache-dir -r {analyzer_name}/requirements.txt
-CMD {command}
+ENTRYPOINT {command}
 """.format(analyzer_name=analyzer_name, command=flavor['command'])
 
         with tempfile.NamedTemporaryFile() as f:
@@ -154,9 +154,8 @@ def build_analyzers(args):
             if not docker_repository_exists(args, flavor['repo']):
                 print('Repository {} does not exist'.format(flavor['repo']))
                 docker_create_repository(args, flavor)
-            tags = flavor['version'] if args.stable else 'devel'
-            for tag in set(tags):
-                docker_push_image(args, flavor['repo'], tag)
+            tag = flavor['version'] if args.stable else 'devel'
+            docker_push_image(args, flavor['repo'], tag)
 
 
 def main():
