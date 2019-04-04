@@ -145,7 +145,7 @@ def build_analyzers(args):
     for analyzer_name in args.analyzers:
         updated_flavors = [flavor
                            for flavor in list_flavor(join(args.analyzer_path, analyzer_name))
-                           if analyzer_is_updated(args, flavor, analyzer_name)]
+                           if args.force or analyzer_is_updated(args, flavor, analyzer_name)]
         patch_requirements(join(args.analyzer_path, analyzer_name, 'requirements.txt'))
         for flavor in updated_flavors:
             flavor['repo'] = flavor['name'].lower()
@@ -196,6 +196,9 @@ def main():
     parser.add_argument('--base-path',
                         default='.',
                         help='Path of the git repository')
+    parser.add_argument('-f', '--force',
+                        action='store_true',
+                        help='Force build Docker image even without any change')
     args = parser.parse_args()
     args.docker_client = docker.from_env()
     args.docker_client.login(args.user, args.password)
