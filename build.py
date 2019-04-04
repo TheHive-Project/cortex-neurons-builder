@@ -46,22 +46,22 @@ def list_flavor(path):
                 yield flavor
 
 
-def analyzer_is_updated(args, flavor, analyzer_name):
+def worker_is_updated(args, flavor, worker_name):
     tag = flavor['version'] if args.stable else 'devel'
     last_commit = last_build_commit(args, flavor['name'].lower(), tag)
     if last_commit is None:
-        print('No previous Docker image found for analyzer {}, build it'.format(flavor['name'].lower()))
+        print('No previous Docker image found for worker {}, build it'.format(flavor['name'].lower()))
         return True
     try:
         repo = git.Repo(args.base_path)
         head = repo.head.commit
         for change in head.diff(other=last_commit):
-            if change.a_path.startswith(join(args.analyzer_path, analyzer_name)) or \
-                    change.b_path.startswith(join(args.analyzer_path, analyzer_name)):
-                print('Previous Docker image of analyzer {} has been built from commit {}, changed detected, rebuild it'
+            if change.a_path.startswith(join(args.worker_path, worker_name)) or \
+                    change.b_path.startswith(join(args.worker_path, worker_name)):
+                print('Previous Docker image of worker {} has been built from commit {}, changed detected, rebuild it'
                       .format(flavor['name'].lower(), last_commit))
                 return True
-        print('Previous Docker image of analyzer {} has been built from commit {}, no change detected'
+        print('Previous Docker image of worker {} has been built from commit {}, no change detected'
               .format(flavor['name'].lower(), last_commit))
         return False
     except:
@@ -72,16 +72,16 @@ def git_commit_sha(args):
     return git.Repo(args.base_path).head.commit.hexsha
 
 
-def build_docker(args, analyzer_name, flavor):
+def build_docker(args, worker_name, flavor):
     def build(dockerfile):
         (image, output) = args.docker_client.images.build(
-                path=join(args.analyzer_path, analyzer_name),
+                path=join(args.worker_path, worker_name),
                 dockerfile=dockerfile,
                 pull=True,
                 labels={
                     'schema-version': '1.0',
                     'org.label-schema.build-date': datetime.datetime.now().isoformat('T') + 'Z',
-                    'org.label-schema.name': analyzer_name,
+                    'org.label-schema.name': worker_name,
                     'org.label-schema.description': flavor['description'].replace("'", "''")[:100],
                     'org.label-schema.url': 'https://thehive-project.org',
                     'org.label-schema.vcs-url': 'https://github.com/TheHive-Project/Cortex-Analyzers',
@@ -94,17 +94,17 @@ def build_docker(args, analyzer_name, flavor):
             if 'stream' in line:
                 print(' > {}'.format(line['stream'].strip()))
 
-    if isfile(join(args.analyzer_path, analyzer_name, 'Dockerfile')):
+    if isfile(join(args.worker_path, worker_name, 'Dockerfile')):
         build(None)
     else:
         dockerfile_content = """  
 FROM python:3
 
-WORKDIR /analyzer
-COPY . {analyzer_name}
-RUN pip install --no-cache-dir -r {analyzer_name}/requirements.txt
+WORKDIR /worker
+COPY . {worker_name}
+RUN pip install --no-cache-dir -r {worker_name}/requirements.txt
 ENTRYPOINT {command}
-""".format(analyzer_name=analyzer_name, command=flavor['command'])
+""".format(worker_name=worker_name, command=flavor['command'])
 
         with tempfile.NamedTemporaryFile() as f:
             f.write(str.encode(dockerfile_content))
@@ -141,16 +141,16 @@ def docker_push_image(args, repo, tag):
     args.docker_client.images.push(image, tag=tag)
 
 
-def build_analyzers(args):
-    for analyzer_name in args.analyzers:
+def build_workers(args):
+    for worker_name in args.workers:
         updated_flavors = [flavor
-                           for flavor in list_flavor(join(args.analyzer_path, analyzer_name))
-                           if args.force or analyzer_is_updated(args, flavor, analyzer_name)]
-        patch_requirements(join(args.analyzer_path, analyzer_name, 'requirements.txt'))
+                           for flavor in list_flavor(join(args.worker_path, worker_name))
+                           if args.force or worker_is_updated(args, flavor, worker_name)]
+        # patch_requirements(join(args.worker_path, worker_name, 'requirements.txt'))
         for flavor in updated_flavors:
             flavor['repo'] = flavor['name'].lower()
-            print('Analyzer {} has been updated'.format(flavor['name']))
-            build_docker(args, analyzer_name, flavor)
+            print('Worker {} has been updated'.format(flavor['name']))
+            build_docker(args, worker_name, flavor)
             if not docker_repository_exists(args, flavor['repo']):
                 print('Repository {} does not exist'.format(flavor['repo']))
                 docker_create_repository(args, flavor)
@@ -164,7 +164,7 @@ def main():
     password = environ.get('PLUGIN_PASSWORD')
     registry = environ.get('PLUGIN_REGISTRY', 'registry-1.docker.io')
     stable = environ.get('PLUGIN_STABLE') is not None
-    analyzer_path = environ.get('PLUGIN_ANALYZER_PATH', 'analyzers')
+    worker_path = environ.get('PLUGIN_WORKER_PATH', 'analyzers')
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--namespace',
                         required=namespace is None,
@@ -185,14 +185,14 @@ def main():
                         action='store_true',
                         default=stable,
                         help='Add release tags')
-    parser.add_argument('-a', '--analyzer',
+    parser.add_argument('-w', '--worker',
                         action='append',
-                        dest='analyzers',
-                        help='Name of the analyzer to build')
+                        dest='workers',
+                        help='Name of the worker to build')
     parser.add_argument('--path',
-                        default=analyzer_path,
-                        dest='analyzer_path',
-                        help='Path of the analyzers')
+                        default=worker_path,
+                        dest='worker_path',
+                        help='Path of the workers')
     parser.add_argument('--base-path',
                         default='.',
                         help='Path of the git repository')
@@ -202,9 +202,9 @@ def main():
     args = parser.parse_args()
     args.docker_client = docker.from_env()
     args.docker_client.login(args.user, args.password)
-    if args.analyzers is None:
-        args.analyzers = listdir(args.analyzer_path)
-    build_analyzers(args)
+    if args.workers is None:
+        args.workers = listdir(args.worker_path)
+    build_workers(args)
 
 
 if __name__ == '__main__':
