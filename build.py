@@ -7,7 +7,7 @@ import json
 import sys
 import tempfile
 from os import listdir, environ
-from os.path import isfile, join
+from os.path import isdir, isfile, join
 
 import docker
 import git
@@ -39,11 +39,14 @@ def patch_requirements(filename):
 
 
 def list_flavor(path):
-    for flavor_filename in listdir(path):
-        if isfile(join(path, flavor_filename)) and flavor_filename.endswith('.json'):
-            with open(join(path, flavor_filename)) as flavor_file:
-                flavor = json.load(flavor_file)
-                yield flavor
+    if isdir(path):
+        for flavor_filename in listdir(path):
+            if isfile(join(path, flavor_filename)) and flavor_filename.endswith('.json'):
+                with open(join(path, flavor_filename)) as flavor_file:
+                    flavor = json.load(flavor_file)
+                    yield flavor
+    else:
+        return []
 
 
 def worker_is_updated(args, flavor, worker_name):
