@@ -159,6 +159,8 @@ def build_workers(args):
                 docker_create_repository(args, flavor)
             tag = flavor['version'] if args.stable else 'devel'
             docker_push_image(args, flavor['repo'], tag)
+            if '.' in tag:
+                docker_push_image(args, flavor['repo'], tag.split('.', 1)[0])
 
 
 def main():
