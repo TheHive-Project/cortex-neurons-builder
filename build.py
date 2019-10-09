@@ -105,7 +105,7 @@ FROM python:3
 
 WORKDIR /worker
 COPY . {worker_name}
-RUN pip install --no-cache-dir -r {worker_name}/requirements.txt
+RUN test -e {worker_name}/requirements.txt && pip install --no-cache-dir -r {worker_name}/requirements.txt
 ENTRYPOINT {command}
 """.format(worker_name=worker_name, command=flavor['command'])
 
