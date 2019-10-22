@@ -9,6 +9,7 @@ ENV DOCKER_VERSION 18.09.0
 
 RUN apt update && \
     apt install -q -y iptables && \
+    update-alternatives --set iptables /usr/sbin/iptables-legacy && \
     rm -rf /var/lib/apt/lists/* && \
     wget -q -O - "https://download.docker.com/linux/static/${DOCKER_CHANNEL}/x86_64/docker-${DOCKER_VERSION}.tgz" | \
     tar -xzC /usr/local/bin/ --strip-components 1 && \
