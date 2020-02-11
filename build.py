@@ -125,7 +125,7 @@ def docker_repository_exists(args, repo):
 def docker_create_repository(args, flavor):
     print('Create repository {}/{}'.format(args.namespace, flavor['repo']))
     resp = requests.post(
-        'https://cloud.docker.com/v2/repositories/',
+        'https://cloud.docker.com/repositories/',
         auth=(args.user, args.password),
         json={
             'namespace': args.namespace,
