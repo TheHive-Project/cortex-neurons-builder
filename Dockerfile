@@ -2,7 +2,7 @@ FROM python:3
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY build.py /usr/local/bin/
+COPY *.py /usr/local/bin/
 
 ENV DOCKER_CHANNEL stable
 ENV DOCKER_VERSION 18.09.0
