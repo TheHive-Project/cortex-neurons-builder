@@ -5,20 +5,22 @@ import git
 
 class Registry:
 
-    def __init__(self, registry):
+    def __init__(self, client, registry_string, default_registry):
         try:
-            self.username = registry.split(":")[0]
-            self.password = registry.split(":")[1].split("@")[0]
-            self.registry = registry.split("@")[1]
+            self.username = registry_string.split(":")[0]
+            self.password = registry_string.split(":")[1].split("@")[0]
+            self.registry = registry_string.split("@")[1]
+            self.client = client
+            self.default_registry = default_registry
         except Exception as e:
             print("Exception: " + str(e))
             print("Wrong format in the registry credentials")
 
-    def login(self, client):
+    def login(self):
         try:
-            client.login(username=self.username,
-                         password=self.password,
-                         registry=self.registry)
+            self.client.login(username=self.username,
+                              password=self.password,
+                              registry=self.registry)
         except Exception as e:
             print("Login failed: {}".format(e))
 
@@ -51,5 +53,17 @@ class Registry:
             print("Worker update check failed: {}".format(e))
             return True
 
-    def push_image(self, namespace, repo, tag, client):
+    def push_image(self, namespace, repo, tag):
         return None
+
+    def get_remote_image_id(self, namespace, repo, tag):
+        return None
+
+    def correctly_pushed(self, namespace, repo, tag):
+        image_tag = '{}/{}:{}'.format(namespace, repo, tag)
+        if not self.default_registry:
+            image_tag = '{}/{}'.format(self.registry, image_tag)
+        local_id = self.client.images.get_registry_data(image_tag, auth_config={"username": self.username,
+                                                                                "password": self.password}).id
+        remote_id = self.get_remote_image_id(namespace, repo, tag)
+        return local_id == remote_id

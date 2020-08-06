@@ -91,7 +91,11 @@ def build_workers(args, list_summary):
                         list_builds.append(flavor['name'])
 
                     tag = flavor['version'] if args.stable else 'devel'
-                    registry.push_image(args.namespace, flavor['repo'], tag, args.docker_client)
+                    registry.push_image(args.namespace, flavor['repo'], tag)
+                    if not registry.correctly_pushed(args.namespace, flavor['repo'], tag):
+                        raise Exception(
+                            "Neurons {}/{}:{} is not correctly pushed on {}"
+                            .format(args.namespace, flavor['repo'], tag, registry.__name__))
 
                     if '.' in tag:
                         registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0],
@@ -126,6 +130,7 @@ def main():
     namespace = environ.get('PLUGIN_NAMESPACE')
     stable = environ.get('PLUGIN_STABLE') is not None
     worker_path = environ.get('PLUGIN_WORKER_PATH', 'analyzers')
+    force = environ.get('PLUGIN_FORCE', False)
 
     registry_dockerhub = (environ.get('PLUGIN_REGISTRY_DOCKERHUB') or "").split(",")
     if registry_dockerhub[0] == "":
@@ -164,20 +169,21 @@ def main():
                         default='.',
                         help='Path of the git repository')
     parser.add_argument('-f', '--force',
+                        default=force,
                         action='store_true',
                         help='Force build Docker image even without any change')
     args = parser.parse_args()
     args.docker_client = docker.from_env()
     args.registry = []
 
-    for registry in args.registry_dockerhub:
-        registry = Dockerhub(registry)
-        registry.login(args.docker_client)
+    for registry_string in args.registry_dockerhub:
+        registry = Dockerhub(registry_string, args.docker_client)
+        registry.login()
         args.registry.append(registry)
 
-    for registry in args.registry_harbor:
-        registry = Harbor(registry)
-        registry.login(args.docker_client)
+    for registry_string in args.registry_harbor:
+        registry = Harbor(registry_string, args.docker_client)
+        registry.login()
         args.registry.append(registry)
 
     if args.workers is None:

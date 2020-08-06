@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
 import json
+import requests
 from dxf import DXF
 from registry import Registry
 
 
 class Dockerhub(Registry):
+
+    def __init__(self, client, registry):
+        super().__init__(client, registry, True)
 
     def last_build_commit(self, namespace, repo, tag):
         def auth(_dxf, response):
@@ -21,9 +25,17 @@ class Dockerhub(Registry):
             print("last_build_commit failed: {}".format(e))
             return None
 
-    def push_image(self, namespace, repo, tag, client):
+    def push_image(self, namespace, repo, tag):
         image = '{}/{}'.format(namespace, repo)
         image_tag = '{}:{}'.format(image, tag)
         print('Push Docker image {} ({})'.format(image_tag, type(self).__name__))
-        client.api.tag(image, image_tag)
-        client.images.push(image, tag=tag)
+        self.client.api.tag(image, image_tag)
+        self.client.images.push(image, tag=tag, auth_config={"username": self.username, "password": self.password})
+
+    def get_remote_image_id(self, namespace, image, tag):
+        resp = requests.get(
+            'https://hub.docker.com/v2/repositories/{}/{}/tags/{}'.format(namespace, image, tag),
+            auth=(self.username, self.password))
+
+        metadata = json.loads(resp.content.decode('utf-8'))
+        return metadata['images'][0]['digest']
