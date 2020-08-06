@@ -177,12 +177,12 @@ def main():
     args.registry = []
 
     for registry_string in args.registry_dockerhub:
-        registry = Dockerhub(registry_string, args.docker_client)
+        registry = Dockerhub(args.docker_client, registry_string)
         registry.login()
         args.registry.append(registry)
 
     for registry_string in args.registry_harbor:
-        registry = Harbor(registry_string, args.docker_client)
+        registry = Harbor(args.docker_client, registry_string)
         registry.login()
         args.registry.append(registry)
 
