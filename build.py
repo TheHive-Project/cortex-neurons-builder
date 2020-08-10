@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import datetime
+
 import json
-import tempfile
+
 import docker
 import git
 import traceback
@@ -25,61 +25,45 @@ def list_flavor(path):
         return []
 
 
-def build_docker(args, flavor, worker_name):
-    def build(dockerfile):
-        try:
-            (image, output) = args.docker_client.images.build(
-                path=join(args.worker_path, worker_name),
-                dockerfile=dockerfile,
-                pull=True,
-                labels={
-                    'schema-version': '1.0',
-                    'org.label-schema.build-date': datetime.datetime.now().isoformat('T') + 'Z',
-                    'org.label-schema.name': worker_name,
-                    'org.label-schema.description': flavor['description'].replace("'", "''")[:100],
-                    'org.label-schema.url': 'https://thehive-project.org',
-                    'org.label-schema.vcs-url': 'https://github.com/TheHive-Project/Cortex-Analyzers',
-                    'org.label-schema.vcs-ref': git_commit_sha(args.base_path),
-                    'org.label-schema.vendor': 'TheHive Project',
-                    'org.label-schema.version': flavor['version']
-                },
-                tag='{}/{}'.format(args.namespace, flavor['repo']))
-            for line in output:
-                if 'stream' in line:
-                    print(' > {}'.format(line['stream'].strip()))
-        except:
-            print("build failed")
-            traceback.print_exc()
-
-    if isfile(join(args.worker_path, worker_name, 'Dockerfile')):
-        build(None)
-    else:
-        dockerfile_content = """  
-FROM python:3
-
-WORKDIR /worker
-COPY . {worker_name}
-RUN test ! -e {worker_name}/requirements.txt || pip install --no-cache-dir -r {worker_name}/requirements.txt
-ENTRYPOINT {command}
-        """.format(worker_name=worker_name, command=flavor['command'])
-
-        with tempfile.NamedTemporaryFile() as f:
-            f.write(str.encode(dockerfile_content))
-            f.flush()
-            build(f.name)
-
-
 def git_commit_sha(base_path):
     return git.Repo(base_path).head.commit.hexsha
 
 
+def worker_is_updated(args, registry, flavor, worker_path, list_summary):
+    tag = flavor['version'] if args.stable else 'devel'
+    last_commit = registry.last_build_commit(args.namespace, flavor['name'].lower(), tag)
+    if last_commit is None:
+        print('No previous Docker image found for worker {}, build it ({})'
+              .format(flavor['name'].lower(), registry.__name__))
+        return True
+    try:
+        repo = git.Repo(args.base_path)
+        head = repo.head.commit
+        for change in head.diff(other=last_commit):
+            if change.a_path.startswith(worker_path) or \
+                    change.b_path.startswith(worker_path):
+                print(
+                    'Previous Docker image of worker {} has been built from commit {}, changed detected, '
+                    'rebuild it ({})'
+                    .format(flavor['name'].lower(), last_commit, registry.__name__))
+                return True
+        print('Previous Docker image of worker {} has been built from commit {}, no change detected ({})'
+              .format(flavor['name'].lower(), last_commit, registry.__name__))
+        list_summary[0].append('{} ({})'.format(flavor['name'], registry.__name__))
+        return False
+    except Exception as e:
+        print("Worker update check failed: {}".format(e))
+        return True
+
+
 def build_workers(args, list_summary):
-    for worker_name in args.workers:
+    git_commit = git_commit_sha(args.base_path)
+    for worker_path in args.workers:
         list_builds = []
         for registry in args.registry:
             updated_flavors = [flavor
-                               for flavor in list_flavor(join(args.worker_path, worker_name))
-                               if args.force or registry.worker_is_updated(args, flavor, worker_name, list_summary)]
+                               for flavor in list_flavor(join(args.base_path, worker_path))
+                               if args.force or worker_is_updated(args, registry, flavor, worker_path, list_summary)]
 
             for flavor in updated_flavors:
                 try:
@@ -87,7 +71,7 @@ def build_workers(args, list_summary):
                     print('Worker {} has been updated'.format(flavor['name']))
 
                     if flavor['name'] not in list_builds:
-                        build_docker(args, flavor, worker_name)
+                        registry.build_docker(args.namespace, args.base_path, worker_path, flavor, git_commit)
                         list_builds.append(flavor['name'])
 
                     tag = flavor['version'] if args.stable else 'devel'
@@ -160,11 +144,11 @@ def main():
     parser.add_argument('-w', '--worker',
                         action='append',
                         dest='workers',
-                        help='Name of the worker to build')
+                        help='Path of the worker (relative to base path) to build')
     parser.add_argument('--path',
                         default=worker_path,
                         dest='worker_path',
-                        help='Path of the workers')
+                        help='Path of the workers, relative to base path')
     parser.add_argument('--base-path',
                         default='.',
                         help='Path of the git repository')
@@ -188,6 +172,7 @@ def main():
 
     if args.workers is None:
         args.workers = listdir(args.worker_path)
+    args.workers = [join(args.worker_path, w) for w in args.workers]
 
     list_summary = [[], [], []]
     build_workers(args, list_summary)

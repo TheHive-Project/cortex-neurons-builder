@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
-import git
+import traceback
+import datetime
+from os.path import isfile, join, basename
+import tempfile
 
 
 class Registry:
@@ -15,6 +18,7 @@ class Registry:
         except Exception as e:
             print("Exception: " + str(e))
             print("Wrong format in the registry credentials")
+            raise e
 
     def login(self):
         try:
@@ -23,35 +27,55 @@ class Registry:
                               registry=self.registry)
         except Exception as e:
             print("Login failed: {}".format(e))
+            raise e
 
     def last_build_commit(self, namespace, repo, tag):
         return None
 
-    def worker_is_updated(self, args, flavor, worker_name, list_summary):
-        tag = flavor['version'] if args.stable else 'devel'
-        last_commit = self.last_build_commit(args.namespace, flavor['name'].lower(), tag)
-        if last_commit is None:
-            print('No previous Docker image found for worker {}, build it ({})'
-                  .format(flavor['name'].lower(), type(self).__name__))
-            return True
-        try:
-            repo = git.Repo(args.base_path)
-            head = repo.head.commit
-            for change in head.diff(other=last_commit):
-                if change.a_path.startswith("analyzers/" + worker_name) or \
-                        change.b_path.startswith("analyzers/" + worker_name):
-                    print(
-                        'Previous Docker image of worker {} has been built from commit {}, changed detected, '
-                        'rebuild it ({})'
-                        .format(flavor['name'].lower(), last_commit, type(self).__name__))
-                    return True
-            print('Previous Docker image of worker {} has been built from commit {}, no change detected ({})'
-                  .format(flavor['name'].lower(), last_commit, type(self).__name__))
-            list_summary[0].append('{} ({})'.format(flavor['name'], type(self).__name__))
-            return False
-        except Exception as e:
-            print("Worker update check failed: {}".format(e))
-            return True
+    def build_docker(self, namespace, base_path, worker_path, flavor, git_commit_sha):
+        worker_name = basename(worker_path)
+
+        def build(dockerfile):
+            try:
+                (image, output) = self.client.images.build(
+                    path=join(base_path, worker_path),
+                    dockerfile=dockerfile,
+                    pull=True,
+                    labels={
+                        'schema-version': '1.0',
+                        'org.label-schema.build-date': datetime.datetime.now().isoformat('T') + 'Z',
+                        'org.label-schema.name': worker_name,
+                        'org.label-schema.description': flavor['description'].replace("'", "''")[:100],
+                        'org.label-schema.url': 'https://thehive-project.org',
+                        'org.label-schema.vcs-url': 'https://github.com/TheHive-Project/Cortex-Analyzers',
+                        'org.label-schema.vcs-ref': git_commit_sha,
+                        'org.label-schema.vendor': 'TheHive Project',
+                        'org.label-schema.version': flavor['version']
+                    },
+                    tag='{}/{}'.format(namespace, flavor['repo']))
+                for line in output:
+                    if 'stream' in line:
+                        print(' > {}'.format(line['stream'].strip()))
+            except:
+                print("build failed")
+                traceback.print_exc()
+
+        if isfile(join(base_path, worker_path, 'Dockerfile')):
+            build(None)
+        else:
+            dockerfile_content = """  
+    FROM python:3
+
+    WORKDIR /worker
+    COPY . {worker_name}
+    RUN test ! -e {worker_name}/requirements.txt || pip install --no-cache-dir -r {worker_name}/requirements.txt
+    ENTRYPOINT {command}
+            """.format(worker_name=worker_name, command=flavor['command'])
+
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(str.encode(dockerfile_content))
+                f.flush()
+                build(f.name)
 
     def push_image(self, namespace, repo, tag):
         return None
