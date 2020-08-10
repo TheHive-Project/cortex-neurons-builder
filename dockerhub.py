@@ -11,6 +11,9 @@ class Dockerhub(Registry):
     def __init__(self, client, registry):
         super().__init__(client, registry, True)
 
+    def name(self):
+        return "dockerhub"
+
     def last_build_commit(self, namespace, repo, tag):
         def auth(_dxf, response):
             _dxf.authenticate(username=self.username, password=self.password, response=response, actions='*')
@@ -28,7 +31,7 @@ class Dockerhub(Registry):
     def push_image(self, namespace, repo, tag):
         image = '{}/{}'.format(namespace, repo)
         image_tag = '{}:{}'.format(image, tag)
-        print('Push Docker image {} ({})'.format(image_tag, type(self).__name__))
+        print('Push Docker image {} ({})'.format(image_tag, self.name()))
         self.client.api.tag(image, image_tag)
         self.client.images.push(image, tag=tag, auth_config={"username": self.username, "password": self.password})
 

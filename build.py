@@ -34,7 +34,7 @@ def worker_is_updated(args, registry, flavor, worker_path, list_summary):
     last_commit = registry.last_build_commit(args.namespace, flavor['name'].lower(), tag)
     if last_commit is None:
         print('No previous Docker image found for worker {}, build it ({})'
-              .format(flavor['name'].lower(), registry.__name__))
+              .format(flavor['name'].lower(), registry.name()))
         return True
     try:
         repo = git.Repo(args.base_path)
@@ -45,11 +45,11 @@ def worker_is_updated(args, registry, flavor, worker_path, list_summary):
                 print(
                     'Previous Docker image of worker {} has been built from commit {}, changed detected, '
                     'rebuild it ({})'
-                    .format(flavor['name'].lower(), last_commit, registry.__name__))
+                    .format(flavor['name'].lower(), last_commit, registry.name()))
                 return True
         print('Previous Docker image of worker {} has been built from commit {}, no change detected ({})'
-              .format(flavor['name'].lower(), last_commit, registry.__name__))
-        list_summary[0].append('{} ({})'.format(flavor['name'], registry.__name__))
+              .format(flavor['name'].lower(), last_commit, registry.name()))
+        list_summary[0].append('{} ({})'.format(flavor['name'], registry.name()))
         return False
     except Exception as e:
         print("Worker update check failed: {}".format(e))
@@ -79,17 +79,17 @@ def build_workers(args, list_summary):
                     if not registry.correctly_pushed(args.namespace, flavor['repo'], tag):
                         raise Exception(
                             "Neurons {}/{}:{} is not correctly pushed on {}"
-                            .format(args.namespace, flavor['repo'], tag, registry.__name__))
+                            .format(args.namespace, flavor['repo'], tag, registry.name()))
 
                     if '.' in tag:
                         registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0],
                                             args.docker_client)
-                    list_summary[1].append('{} ({})'.format(flavor['name'], type(registry).__name__))
+                    list_summary[1].append('{} ({})'.format(flavor['name'], registry.name()))
                 except Exception as e:
                     print("build workers failed: {}".format(e))
                     traceback.print_exc()
                     list_summary[2].append('{} ({}) -> {}'
-                                           .format(flavor['name'], type(registry).__name__, e))
+                                           .format(flavor['name'], registry.name(), e))
 
 
 def display_list_summary(list_summary):

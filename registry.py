@@ -20,6 +20,9 @@ class Registry:
             print("Wrong format in the registry credentials")
             raise e
 
+    def name(self):
+        return "unknown"
+
     def login(self):
         try:
             self.client.login(username=self.username,
