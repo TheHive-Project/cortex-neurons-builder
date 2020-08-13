@@ -82,8 +82,7 @@ def build_workers(args, list_summary):
                             .format(args.namespace, flavor['repo'], tag, registry.name()))
 
                     if '.' in tag:
-                        registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0],
-                                            args.docker_client)
+                        registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0])
                     list_summary[1].append('{} ({})'.format(flavor['name'], registry.name()))
                 except Exception as e:
                     print("build workers failed: {}".format(e))
