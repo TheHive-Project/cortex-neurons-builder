@@ -34,9 +34,12 @@ class Harbor(Registry):
         self.client.images.push(image, tag=tag)
 
     def get_remote_image_id(self, namespace, repo, tag):
-        resp = requests.get(
-            'https://{}/api/repositories/{}/{}/tags/{}'.format(self.registry, namespace, repo, tag),
-            auth=(self.username, self.password))
+        try:
+            resp = requests.get(
+                'https://{}/api/repositories/{}/{}/tags/{}'.format(self.registry, namespace, repo, tag),
+                auth=(self.username, self.password))
 
-        metadata = json.loads(resp.content.decode('utf-8'))
-        return metadata['digest']
+            metadata = json.loads(resp.content.decode('utf-8'))
+            return metadata['digest']
+        except Exception as e:
+            return None
