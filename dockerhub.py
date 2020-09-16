@@ -36,9 +36,12 @@ class Dockerhub(Registry):
         self.client.images.push(image, tag=tag, auth_config={"username": self.username, "password": self.password})
 
     def get_remote_image_id(self, namespace, image, tag):
-        resp = requests.get(
-            'https://hub.docker.com/v2/repositories/{}/{}/tags/{}'.format(namespace, image, tag),
-            auth=(self.username, self.password))
+        try:
+            resp = requests.get(
+                'https://hub.docker.com/v2/repositories/{}/{}/tags/{}'.format(namespace, image, tag),
+                auth=(self.username, self.password))
 
-        metadata = json.loads(resp.content.decode('utf-8'))
-        return metadata['images'][0]['digest']
+            metadata = json.loads(resp.content.decode('utf-8'))
+            return metadata['images'][0]['digest']
+        except Exception as e:
+            return None
