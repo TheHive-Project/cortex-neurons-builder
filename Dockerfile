@@ -5,7 +5,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py /usr/local/bin/
 
 ENV DOCKER_CHANNEL stable
-ENV DOCKER_VERSION 18.09.0
+ENV DOCKER_VERSION 20.10.6
 
 RUN apt update && \
     apt install -q -y iptables && \
