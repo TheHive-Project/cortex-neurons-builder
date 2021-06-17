@@ -2,3 +2,4 @@ requests
 docker
 python-dxf
 gitpython
+six
