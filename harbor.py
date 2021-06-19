@@ -36,7 +36,7 @@ class Harbor(Registry):
     def get_remote_image_id(self, namespace, repo, tag):
         try:
             resp = requests.get(
-                'https://{}/api/repositories/{}/{}/tags/{}'.format(self.registry, namespace, repo, tag),
+                'https://{}/api/v2.0/projects/{}/repositories/{}/artifacts?q=tags={}'.format(self.registry, namespace, repo, tag),
                 auth=(self.username, self.password))
 
             metadata = json.loads(resp.content.decode('utf-8'))
