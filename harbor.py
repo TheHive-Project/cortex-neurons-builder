@@ -40,6 +40,6 @@ class Harbor(Registry):
                 auth=(self.username, self.password))
 
             metadata = json.loads(resp.content.decode('utf-8'))
-            return metadata['digest']
+            return metadata[0]['digest']
         except Exception as e:
             return None
