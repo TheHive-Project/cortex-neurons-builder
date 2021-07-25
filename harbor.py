@@ -16,11 +16,17 @@ class Harbor(Registry):
     def last_build_commit(self, namespace, repo, tag):
         try:
             resp = requests.get(
-                'https://{}/api/repositories/{}/{}/tags/{}/manifest'.format(self.registry, namespace, repo, tag),
+                # 'https://{}/api/repositories/{}/{}/tags/{}/manifest'.format(self.registry, namespace, repo, tag),
+                # Harbor API v2.0 
+                'https://{}/api/v2.0/projects/{}/repositories/{}/artifacts/{}'.format(
+                    self.registry, namespace, repo, tag),
                 auth=(self.username, self.password))
 
             metadata = json.loads(resp.content.decode('utf-8'))
-            return json.loads(metadata['config'])['config']['Labels']['org.label-schema.vcs-ref']
+            # return json.loads(metadata['config'])['config']['Labels']['org.label-schema.vcs-ref']
+            # Harbor API v2.0 
+            return metadata['extra_attrs']['config']['Labels']['org.label-schema.vcs-ref']
+
         except Exception as e:
             print("last_build_commit failed: {}".format(e))
             return None
