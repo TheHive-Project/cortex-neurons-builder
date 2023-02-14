@@ -59,9 +59,10 @@ class Registry:
                 for line in output:
                     if 'stream' in line:
                         print(' > {}'.format(line['stream'].strip()))
-            except:
-                print("build failed")
+            except Exception as e:
+                print('build failed for worker {}'.format(worker_name))
                 traceback.print_exc()
+                raise e
 
         if isfile(join(base_path, worker_path, 'Dockerfile')):
             build(None)
