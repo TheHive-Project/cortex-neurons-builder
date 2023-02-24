@@ -23,8 +23,8 @@ jobs:
             ${{ secrets.harbor_registry }}/${{ secrets.harbor_repo }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{date 'YYYYMMDD'}}
             type=sha
-            type=schedule,pattern={{date 'YYYYMMDD'}}
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
