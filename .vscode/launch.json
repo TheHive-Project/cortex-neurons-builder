@@ -1,0 +1,18 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "python": "/home/jerome/Devel/virtualenv/thp/bin/python3",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["-n", "jeromeleonard",  "-rd","jeromeleonard:t3bKFegUE8qAJKnz@registry-1.docker.io", "--path", "analyzers", "-w", "Shodan"],
+            "cwd": "/home/jerome/Devel/TheHive-Project/Cortex-Analyzers"
+        }
+    ]
+}
