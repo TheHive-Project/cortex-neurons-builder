@@ -76,13 +76,12 @@ def build_workers(args, list_summary):
 
                     tag = flavor['version'] if args.stable else 'devel'
                     registry.push_image(args.namespace, flavor['repo'], tag)
+                    if '.' in tag:
+                        registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0])
                     if not registry.correctly_pushed(args.namespace, flavor['repo'], tag):
                         raise Exception(
                             "Neurons {}/{}:{} is not correctly pushed on {}"
                             .format(args.namespace, flavor['repo'], tag, registry.name()))
-
-                    if '.' in tag:
-                        registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0])
                     list_summary[1].append('{} ({})'.format(flavor['name'], registry.name()))
                 except Exception as e:
                     print("build workers failed: {}".format(e))
@@ -165,9 +164,10 @@ def main():
         args.registry.append(registry)
 
     for registry_string in args.registry_harbor:
-        registry = Harbor(args.docker_client, registry_string)
-        registry.login()
-        args.registry.append(registry)
+        # registry = Harbor(args.docker_client, registry_string)
+        # registry.login()
+        # args.registry.append(registry)
+        print("Harbor - do nothing")
 
     if args.workers is None:
         args.workers = listdir(args.worker_path)
