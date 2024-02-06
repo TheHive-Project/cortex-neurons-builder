@@ -105,4 +105,8 @@ class Registry:
         remote_id = self.get_remote_image_id(namespace, repo, tag)
         if remote_id is None:
             return True
+        try:
+            print(f"DEBUG: Comparing local_id and remote_id, local_id: {local_id}, remote_id: {remote_id}")
+        except NameError as e:
+            print(f"Error: {e}. Ensure 'local_id' and 'remote_id' are defined before comparing.")
         return local_id == remote_id

@@ -81,6 +81,16 @@ class Dockerhub(Registry):
             )
 
             metadata = json.loads(resp.content.decode("utf-8"))
+            try:
+                print(f"DEBUG: remote image last pushed: {metadata['images'][0]['last-pushed']}")
+                print(f"DEBUG: remote image status: {metadata['images'][0]['status']}")
+                print(f"DEBUG: repository tag status: {metadata['status']}")
+                print(f"DEBUG: repository tag last updated: {metadata['last_updated']}")
+                print(f"DEBUG: repository tag last pushed: {metadata['tag_last_pushed']}")
+            except KeyError as e:
+                print(f"KeyError encountered while accessing metadata: {e}")
+            except IndexError as e:
+                print(f"IndexError encountered while accessing metadata: {e}")
             return metadata["images"][0]["digest"]
         except Exception as e:
             print("Can't get remote image id: {}".format(e))
