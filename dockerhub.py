@@ -4,7 +4,8 @@ import json
 import requests
 from dxf import DXF
 from registry import Registry
-
+import traceback
+from docker.errors import BuildError, APIError
 
 class Dockerhub(Registry):
     def __init__(self, client, registry):
@@ -39,18 +40,36 @@ class Dockerhub(Registry):
             ]["org.label-schema.vcs-ref"]
         except Exception as e:
             print("last_build_commit failed: {}".format(e))
+            traceback.print_exc()
             return None
 
     def push_image(self, namespace, repo, tag):
-        image = "{}/{}".format(namespace, repo)
-        image_tag = "{}:{}".format(image, tag)
-        print("Push Docker image {} ({})".format(image_tag, self.name()))
-        self.client.api.tag(image, image_tag)
-        self.client.images.push(
-            image,
-            tag=tag,
-            auth_config={"username": self.username, "password": self.password},
-        )
+        try:
+            image = "{}/{}".format(namespace, repo)
+            image_tag = "{}:{}".format(image, tag)
+            print("Pushing Docker image {} ({})".format(image_tag, self.name()))
+
+            # Tagging the image
+            self.client.api.tag(image, image_tag)
+
+            # Pushing the image
+            self.client.images.push(
+                image,
+                tag=tag,
+                auth_config={"username": self.username, "password": self.password},
+            )
+        except BuildError as be:
+            print("Build error occurred: {}".format(be))
+            # Handle build-specific error
+        except APIError as ae:
+            print("API error occurred: {}".format(ae))
+            # Handle API-specific error
+        except TypeError as te:
+            print("Type error: {}".format(te))
+            # Handle type error
+        except Exception as e:
+            print("An unexpected error occurred: {}".format(e))
+            # Handle other exceptions
 
     def get_remote_image_id(self, namespace, image, tag):
         try:
