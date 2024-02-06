@@ -164,10 +164,9 @@ def main():
         args.registry.append(registry)
 
     for registry_string in args.registry_harbor:
-        # registry = Harbor(args.docker_client, registry_string)
-        # registry.login()
-        # args.registry.append(registry)
-        print("Harbor - do nothing")
+        registry = Harbor(args.docker_client, registry_string)
+        registry.login()
+        args.registry.append(registry)
 
     if args.workers is None:
         args.workers = listdir(args.worker_path)
