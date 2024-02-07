@@ -84,9 +84,8 @@ class Dockerhub(Registry):
             try:
                 print(f"DEBUG: remote image last pushed: {metadata['images'][0]['last_pushed']}")
                 print(f"DEBUG: remote image status: {metadata['images'][0]['status']}")
-                print(f"DEBUG: repository tag status: {metadata['status']}")
-                print(f"DEBUG: repository tag last updated: {metadata['last_updated']}")
                 print(f"DEBUG: repository tag last pushed: {metadata['tag_last_pushed']}")
+                print(f"DEBUG: repository tag last updated: {metadata['last_updated']}")
             except KeyError as e:
                 print(f"KeyError encountered while accessing metadata: {e}")
             except IndexError as e:

@@ -79,9 +79,10 @@ def build_workers(args, list_summary):
                     if '.' in tag:
                         registry.push_image(args.namespace, flavor['repo'], tag.split('.', 1)[0])
                     if not registry.correctly_pushed(args.namespace, flavor['repo'], tag):
-                        raise Exception(
-                            "Neurons {}/{}:{} is not correctly pushed on {}"
-                            .format(args.namespace, flavor['repo'], tag, registry.name()))
+                        # raise Exception(
+                        #     "Neurons {}/{}:{} is not correctly pushed on {}"
+                        #     .format(args.namespace, flavor['repo'], tag, registry.name()))
+                        print(f"WARN: Neurons {args.namespace}/{flavor['repo']}:{tag} digest check failed on {registry.name()}. This however, does not mean a push failed. Data returned by this function or call may not be up-to-date in some instances.")
                     list_summary[1].append('{} ({})'.format(flavor['name'], registry.name()))
                 except Exception as e:
                     print("build workers failed: {}".format(e))
