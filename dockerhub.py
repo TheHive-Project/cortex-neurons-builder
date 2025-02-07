@@ -91,19 +91,21 @@ class Dockerhub(Registry):
 
     def push_image(self, namespace, repo, tag):
         try:
-            image = "{}/{}".format(namespace, repo)
-            image_tag = "{}:{}".format(image, tag)
-            print("Pushing Docker image {} ({})".format(image_tag, self.name()))
+            image = f"{namespace}/{repo}"
+            image_tag = f"{image}:{tag}"
+            print(f"Pushing Docker image {image_tag} ({self.name()})")
 
             # Tagging the image
             self.client.api.tag(image, image_tag)
 
-            # Pushing the image
-            self.client.images.push(
-                image,
-                tag=tag,
-                _config={"username": self.username, "password": self.password},
-            )
+            # Login to Docker Hub
+            login_response = self.client.login(username=self.username, password=self.password)
+            #print(f"Login successful: {login_response}")
+
+            # Push the image
+            push_output = self.client.images.push(repository=image, tag=tag)
+            #print("Push output:", push_output)
+
         except BuildError as be:
             print("Build error occurred: {}".format(be))
             # Handle build-specific error
@@ -119,23 +121,16 @@ class Dockerhub(Registry):
 
     def get_remote_image_id(self, namespace, image, tag):
         try:
-            resp = requests.get(
-                "https://hub.docker.com/v2/repositories/{}/{}/tags/{}".format(
-                    namespace, image, tag
-                ),
-                auth=(self.username, self.password),
-            )
-
+            url = f"https://hub.docker.com/v2/repositories/{namespace}/{image}/tags/{tag}"
+            resp = requests.get(url, auth=(self.username, self.password))
             metadata = json.loads(resp.content.decode("utf-8"))
             try:
                 print(f"DEBUG: remote image last pushed: {metadata['images'][0]['last_pushed']}")
                 print(f"DEBUG: remote image status: {metadata['images'][0]['status']}")
                 print(f"DEBUG: repository tag last pushed: {metadata['tag_last_pushed']}")
                 print(f"DEBUG: repository tag last updated: {metadata['last_updated']}")
-            except KeyError as e:
-                print(f"KeyError encountered while accessing metadata: {e}")
-            except IndexError as e:
-                print(f"IndexError encountered while accessing metadata: {e}")
+            except (KeyError, IndexError) as e:
+                print(f"DEBUG: Error accessing metadata: {e}")
             return metadata["images"][0]["digest"]
         except Exception as e:
             print("Can't get remote image id: {}".format(e))
