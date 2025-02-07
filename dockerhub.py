@@ -6,6 +6,7 @@ from dxf import DXF
 from registry import Registry
 import traceback
 from docker.errors import BuildError, APIError
+from dxf.exceptions import DXFUnauthorizedError
 
 class Dockerhub(Registry):
     def __init__(self, client, registry):
@@ -15,33 +16,78 @@ class Dockerhub(Registry):
         return "dockerhub"
 
     def last_build_commit(self, namespace, repo, tag):
+        """
+        Retrieve the commit hash (vcs-ref) from the image manifest.
+        
+        :param namespace: The namespace of the repository.
+        :param repo: The repository name.
+        :param tag: The image tag.
+        :return: The commit hash if found, otherwise None.
+        """
         def auth(_dxf, response):
-            _dxf.authenticate(
-                username=self.username,
-                password=self.password,
-                response=response,
-                actions="*",
-            )
-
+            #print("DEBUG: Authenticating using provided credentials...")
+            try:
+                _dxf.authenticate(
+                    username=self.username,
+                    password=self.password,
+                    response=response,
+                    actions="*",
+                )
+            #    print("DEBUG: Authentication successful.")
+            except Exception as auth_err:
+                print(f"ERROR: Authentication failed: {auth_err}")
+                raise  # Propagate the error to be handled by the try/except
+    
         try:
-            dxf = DXF(
-                host=self.registry, repo="{}/{}".format(namespace, repo), auth=auth
-            )
-            r = dxf._request(
+            repo_full = f"{namespace}/{repo}"
+            print(f"DEBUG: Fetching manifest for repository '{repo_full}' with tag '{tag}' from registry '{self.registry}'")
+            
+            # init
+            dxf = DXF(host=self.registry, repo=repo_full, auth=auth)
+            
+            # build the manifest URL and make the GET request
+            manifest_url = f"manifests/{tag}"
+            print(f"DEBUG: Requesting manifest at URL: {manifest_url}")
+            response = dxf._request(
                 "get",
-                "manifests/" + tag,
+                manifest_url,
                 headers={
                     "Accept": "application/vnd.docker.distribution.manifest.v1+json"
                 },
             )
-            metadata = json.loads(r.content.decode("utf-8"))
-            return json.loads(metadata["history"][0]["v1Compatibility"])["config"][
-                "Labels"
-            ]["org.label-schema.vcs-ref"]
+            print("DEBUG: Response received. Decoding JSON content...")
+            
+            # decode the response content into a Python dictionary.
+            metadata = json.loads(response.content.decode("utf-8"))
+            #print("DEBUG: Metadata decoded successfully:")
+            #print(metadata)
+            # extract the commit hash from the metadata
+            history = metadata.get("history", [])
+            if not history:
+                print("ERROR: No history found in metadata.")
+                return None
+            # check if first history entry contains the v1Compatibility JSON
+            v1compat_str = history[0].get("v1Compatibility")
+            if not v1compat_str:
+                print("ERROR: No v1Compatibility found in the first history entry.")
+                return None
+            v1compat = json.loads(v1compat_str)
+            labels = v1compat.get("config", {}).get("Labels", {})
+            commit = labels.get("org.label-schema.vcs-ref")
+            if commit:
+                print(f"DEBUG: Found commit: {commit}")
+            else:
+                print("ERROR: Commit label 'org.label-schema.vcs-ref' not found in metadata labels.")
+            return commit
+        except DXFUnauthorizedError as unauthorized:
+            print(f"ERROR: Unauthorized error encountered in last_build_commit - DXFUnauthorizedError: {unauthorized}")
+            #traceback.print_exc()
+            return None
         except Exception as e:
-            print("last_build_commit failed: {}".format(e))
+            print(f"ERROR: last_build_commit failed: {e}")
             traceback.print_exc()
             return None
+
 
     def push_image(self, namespace, repo, tag):
         try:
@@ -56,7 +102,7 @@ class Dockerhub(Registry):
             self.client.images.push(
                 image,
                 tag=tag,
-                auth_config={"username": self.username, "password": self.password},
+                _config={"username": self.username, "password": self.password},
             )
         except BuildError as be:
             print("Build error occurred: {}".format(be))
