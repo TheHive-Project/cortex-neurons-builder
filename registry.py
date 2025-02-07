@@ -46,59 +46,65 @@ class Registry:
                     pull=True,
                     labels={
                         "schema-version": "1.0",
-                        "org.label-schema.build-date": datetime.datetime.now().isoformat(
-                            "T"
-                        )
-                        + "Z",
+                        "org.label-schema.build-date": datetime.datetime.now().isoformat("T") + "Z",
                         "org.label-schema.name": worker_name,
-                        "org.label-schema.description": flavor["description"].replace(
-                            "'", "''"
-                        )[:100],
+                        "org.label-schema.description": flavor["description"].replace("'", "''")[:100],
                         "org.label-schema.url": "https://thehive-project.org",
                         "org.label-schema.vcs-url": "https://github.com/TheHive-Project/Cortex-Analyzers",
                         "org.label-schema.vcs-ref": git_commit_sha,
                         "org.label-schema.vendor": "TheHive Project",
                         "org.label-schema.version": flavor["version"],
                     },
-                    tag="{}/{}".format(namespace, flavor["repo"]),
+                    tag=f"{namespace}/{flavor['repo']}",
                 )
                 for line in output:
                     if "stream" in line:
-                        print(" > {}".format(line["stream"].strip()))
+                        print(f" > {line['stream'].strip()}")
             except Exception as e:
-                print("build failed for worker {}".format(worker_name))
+                print(f"build failed for worker {worker_name}")
                 traceback.print_exc()
                 raise e
 
         if isfile(join(base_path, worker_path, "Dockerfile")):
             build(None)
         else:
-            dockerfile_content = """  
-    FROM python:3-slim
+            # Define the base images to try, in order
+            base_images = ["python:3-alpine", "python:3-slim", "python:3"]
+            last_exception = None
 
-    WORKDIR /worker
-    COPY . {worker_name}
-    RUN test ! -e {worker_name}/requirements.txt || pip install --no-cache-dir -r {worker_name}/requirements.txt
-    ENTRYPOINT {command}
-            """.format(
-                worker_name=worker_name, command=flavor["command"]
-            )
-
-            # Use a temporary file for the generated Dockerfile.
-            with tempfile.NamedTemporaryFile() as f:
-                f.write(dockerfile_content.encode("utf-8"))
-                f.flush()
-                try:
-                    build(f.name)
-                except BuildError as be:
-                    print(f"BuildError encountered with python:3-slim for worker {worker_name}. Retrying with python:3")
-                    # Replace the base image to python:3 and retry.
-                    new_dockerfile_content = dockerfile_content.replace("FROM python:3-slim", "FROM python:3")
-                    f.seek(0)
-                    f.truncate(0)
-                    f.write(new_dockerfile_content.encode("utf-8"))
+            for base in base_images:
+                # For Alpine, add extra APK commands to install required tools
+                if base.startswith("python:3-alpine"):
+                    alpine_setup = (
+                        "RUN apk update && apk upgrade && apk add --no-cache --update py3-pip && rm -rf /var/cache/apk/*\n"
+                    )
+                else:
+                    alpine_setup = ""
+                
+                dockerfile_content = f"""  
+                FROM {base}
+                {alpine_setup}WORKDIR /worker
+                COPY . {worker_name}
+                RUN test ! -e {worker_name}/requirements.txt || pip install --no-cache-dir -r {worker_name}/requirements.txt
+                ENTRYPOINT {flavor["command"]}
+                """
+                print(f"Trying build for worker {worker_name} using base image {base}...")
+                with tempfile.NamedTemporaryFile() as f:
+                    f.write(dockerfile_content.encode("utf-8"))
                     f.flush()
-                    build(f.name)
+                    try:
+                        build(f.name)
+                        print(f"Build succeeded for worker {worker_name} using base image {base}.")
+                        return  # Build succeeded; exit the function
+                    except BuildError as be:
+                        print(f"BuildError encountered with base image {base} for worker {worker_name}.")
+                        last_exception = be
+
+            print(f"All build attempts failed for worker {worker_name}.")
+            raise last_exception
+
+
+
 
     def push_image(self, namespace, repo, tag):
         return None
