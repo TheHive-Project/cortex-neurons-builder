@@ -19,7 +19,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         iptables \
         wget \
-        ca-certificates && \
+        ca-certificates \
+        git && \
     update-alternatives --set iptables /usr/sbin/iptables-legacy && \
     rm -rf /var/lib/apt/lists/* && \
     wget -q -O - "https://download.docker.com/linux/static/${DOCKER_CHANNEL}/x86_64/docker-${DOCKER_VERSION}.tgz" | \
