@@ -73,7 +73,7 @@ class Registry:
             build(None)
         else:
             dockerfile_content = """  
-    FROM python:3
+    FROM python:3-slim
 
     WORKDIR /worker
     COPY . {worker_name}
