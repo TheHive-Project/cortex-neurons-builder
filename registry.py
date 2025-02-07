@@ -4,6 +4,7 @@ import traceback
 import datetime
 from os.path import isfile, join, basename
 import tempfile
+from docker.errors import BuildError
 
 
 class Registry:
@@ -83,10 +84,21 @@ class Registry:
                 worker_name=worker_name, command=flavor["command"]
             )
 
+            # Use a temporary file for the generated Dockerfile.
             with tempfile.NamedTemporaryFile() as f:
-                f.write(str.encode(dockerfile_content))
+                f.write(dockerfile_content.encode("utf-8"))
                 f.flush()
-                build(f.name)
+                try:
+                    build(f.name)
+                except BuildError as be:
+                    print(f"BuildError encountered with python:3-slim for worker {worker_name}. Retrying with python:3")
+                    # Replace the base image to python:3 and retry.
+                    new_dockerfile_content = dockerfile_content.replace("FROM python:3-slim", "FROM python:3")
+                    f.seek(0)
+                    f.truncate(0)
+                    f.write(new_dockerfile_content.encode("utf-8"))
+                    f.flush()
+                    build(f.name)
 
     def push_image(self, namespace, repo, tag):
         return None
