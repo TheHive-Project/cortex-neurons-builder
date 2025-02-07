@@ -12,7 +12,7 @@ COPY *.py /usr/local/bin/
 
 # Env variables for Docker binary download
 ENV DOCKER_CHANNEL=stable
-ENV DOCKER_VERSION=24.0.9
+ENV DOCKER_VERSION=27.5.1
 
 # Install required packages and Docker CLI
 RUN apt-get update && \
