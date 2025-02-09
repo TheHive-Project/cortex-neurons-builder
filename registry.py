@@ -75,9 +75,10 @@ class Registry:
             for base in base_images:
                 # For Alpine, add extra APK commands to install required tools
                 if base.startswith("python:3-alpine"):
-                    alpine_setup = (
-                        "RUN apk update && apk upgrade && apk add --no-cache --update py3-pip && rm -rf /var/cache/apk/*\n"
-                    )
+                    #alpine_setup = (
+                    #    "RUN apk update && apk upgrade && apk add --no-cache --update py3-pip && rm -rf /var/cache/apk/*\n"
+                    #)
+                    alpine_setup = ""
                 else:
                     alpine_setup = ""
                 
