@@ -85,9 +85,12 @@ class Registry:
                 dockerfile_content = f"""  
                 FROM {base}
                 {alpine_setup}WORKDIR /worker
-                COPY . {worker_name}
+
+                COPY requirements.txt {worker_name}/
                 RUN test ! -e {worker_name}/requirements.txt || pip install --no-cache-dir -r {worker_name}/requirements.txt
-                ENTRYPOINT {flavor["command"]}
+
+                COPY . {worker_name}/
+                ENTRYPOINT ["python", "{flavor['command']}"]
                 """
                 print(f"Trying build for worker {worker_name} using base image {base}...")
                 with tempfile.NamedTemporaryFile() as f:
