@@ -126,14 +126,20 @@ class Registry:
             # Define the base images to try, in order
             base_images = ["python:3-alpine", "python:3-slim", "python:3"]
             last_exception = None
+            
+            # List of workers that need a special Alpine setup to support libmagic
+            # --> not developped correctly to support single Dockerfile in repository (multiple .py entrypoint file)
+            special_alpine_workers = ["PaloAltoNGFW"]
 
             for base in base_images:
                 # For Alpine, add extra APK commands to install required tools
                 if base.startswith("python:3-alpine"):
-                    #alpine_setup = (
-                    #    "RUN apk update && apk upgrade && apk add --no-cache --update py3-pip && rm -rf /var/cache/apk/*\n"
-                    #)
-                    alpine_setup = ""
+                    if worker_name in special_alpine_workers:
+                        # Specific alpine setup to support libmagic
+                        alpine_setup = "RUN apk add --no-cache file-dev && rm -rf /var/cache/apk/*\n"
+                    else:
+                        # Regular Alpine setup (if needed)
+                        alpine_setup = ""
                 else:
                     alpine_setup = ""
                 
