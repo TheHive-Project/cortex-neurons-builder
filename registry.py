@@ -81,7 +81,10 @@ class Registry:
             )
             print(result.stdout)
             if result.returncode != 0:
-                print("⚠️ Import testing FAILED with exit code", result.returncode)
+                warning_message = f"Import testing FAILED for worker '{worker_name}' with exit code {result.returncode}"
+                print("⚠️", warning_message)
+                # GitHub Actions annotation for warning
+                print(f"::warning::{warning_message}")
             else:
                 print("✅ Import testing succeeded")
         except Exception as e:
