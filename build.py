@@ -31,10 +31,14 @@ def git_commit_sha(base_path):
 
 def worker_is_updated(args, registry, flavor, worker_path, list_summary):
     tag = flavor['version'] if args.stable else 'devel'
-    last_commit = registry.last_build_commit(args.namespace, flavor['name'].lower(), tag)
-    if last_commit is None:
-        print('No previous Docker image found for worker {}, build it ({})'
-              .format(flavor['name'].lower(), registry.name()))
+    try:
+        last_commit = registry.last_build_commit(args.namespace, flavor['name'].lower(), tag)
+        if last_commit is None:
+            print('No previous Docker image found for worker {}, build it ({})'
+                  .format(flavor['name'].lower(), registry.name()))
+            return True
+    except Exception as e:
+        print(f"Error retrieving last build commit for {flavor['name'].lower()}: {e} -- Still proceeding to update")
         return True
     try:
         repo = git.Repo(args.base_path)
